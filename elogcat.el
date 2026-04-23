@@ -89,6 +89,8 @@ Set to nil to replay the full ring buffer by default."
 (defvar elogcat-exclude-filter-regexp nil)
 (defvar elogcat-min-level "V"
   "Minimum log level to display.  One of V D I W E F.")
+(defvar elogcat-package-filter nil
+  "Current package filter string shown in mode line, e.g. \"com.example:1234\".")
 
 (defconst elogcat-process-name "elogcat")
 
@@ -113,9 +115,12 @@ Set to nil to replay the full ring buffer by default."
 
 (defun elogcat-make-status (&optional _status)
   "Get a log buffer status for use in the mode line."
-  (format " elogcat[%s]<%s>"
+  (format " elogcat[%s]%s<%s>"
           (mapconcat #'elogcat-get-log-buffer-status
                      '("main" "system" "radio" "events" "crash" "kernel") "")
+          (if elogcat-package-filter
+              (format "(%s)" elogcat-package-filter)
+            "")
           elogcat-min-level))
 
 (defun elogcat-erase-buffer ()
@@ -292,6 +297,7 @@ if the user scrolled away the window stays put."
           ("I" . elogcat-clear-include-filter)
           ("X" . elogcat-clear-exclude-filter)
           ("L" . elogcat-set-level)
+          ("P" . elogcat-toggle-package)
           ("g" . elogcat-show-status)
           ("F" . occur)
           ("q" . elogcat-exit)
@@ -317,6 +323,40 @@ if the user scrolled away the window stays put."
       (kill-process proc)
       (sleep-for 0.1))
     (kill-buffer buf)))
+
+(defun elogcat-toggle-package (pkg)
+  "Toggle filtering logcat output by Android package PKG.
+Interactively, select from installed third-party packages.
+If the selected package is already filtered, remove the filter."
+  (interactive
+   (list (completing-read
+          "Select package: "
+          (mapcar (lambda (name)
+                    (replace-regexp-in-string "package:" "" name))
+                  (split-string
+                   (string-trim
+                    (shell-command-to-string "adb shell pm list package -3"))
+                   "\n")))))
+  (let ((pid (string-trim
+              (shell-command-to-string (concat "adb shell pidof " pkg))))
+        (option " --pid="))
+    (when (string-empty-p pid)
+      (error "App %s is not running" pkg))
+    (if (string-match (format "\\(%s\\)\\([0-9]*\\)"
+                              (regexp-quote option))
+                      elogcat-logcat-command)
+        (setq elogcat-logcat-command
+              (if (string= (match-string 2 elogcat-logcat-command) pid)
+                  (progn (setq elogcat-package-filter nil)
+                         (replace-match "" nil nil elogcat-logcat-command))
+                (setq elogcat-package-filter (format "%s:%s" pkg pid))
+                (replace-match pid nil nil elogcat-logcat-command 2)))
+      (setq elogcat-logcat-command (concat elogcat-logcat-command option pid))
+      (setq elogcat-package-filter (format "%s:%s" pkg pid))))
+  (let ((buffer-read-only nil))
+    (erase-buffer))
+  (elogcat-stop)
+  (elogcat))
 
 (defun elogcat-stop ()
   "Stop the adb logcat process."
