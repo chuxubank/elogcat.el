@@ -297,6 +297,7 @@ if the user scrolled away the window stays put."
           ("X" . elogcat-clear-exclude-filter)
           ("L" . elogcat-set-level)
           ("P" . elogcat-toggle-package)
+          ("S" . elogcat-save-buffer)
           ("g" . elogcat-show-status)
           ("F" . occur)
           ("q" . elogcat-exit)
@@ -391,6 +392,12 @@ With bare \\[universal-argument], replay full ring buffer history."
         (font-lock-mode -1))
       (switch-to-buffer elogcat-buffer)
       (goto-char (point-max)))))
+
+(defun elogcat-save-buffer ()
+  "Save the current elogcat buffer to a file and stop the logcat process."
+  (interactive)
+  (save-buffer)
+  (elogcat-stop))
 
 (provide 'elogcat)
 ;;; elogcat.el ends here
