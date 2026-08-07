@@ -201,7 +201,7 @@ Only lines at or above this level will be displayed."
   (setq elogcat-min-level (substring level 0 1))
   (message "elogcat: min level set to %s" elogcat-min-level))
 
-(defun elogcat-process-filter (process output)
+(defun elogcat-process-filter (_process output)
   "Adb PROCESS make line from OUTPUT buffer.
 Batch-inserts all matching lines in one operation for speed.
 Only auto-scrolls windows whose point was already at the tail;
@@ -256,7 +256,7 @@ if the user scrolled away the window stays put."
           (dolist (win following-wins)
             (set-window-point win new-max)))))))
 
-(defun elogcat-process-sentinel (process event)
+(defun elogcat-process-sentinel (_process _event)
   "Test PROCESS EVENT.")
 
 (defmacro elogcat-define-toggle-function (sym ring-buffer-name)
